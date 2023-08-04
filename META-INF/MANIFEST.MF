@@ -1,0 +1,10 @@
+Manifest-Version: 1.0.0
+Implementation-Title: gdata
+Implementation-Version: 1.0.0
+Built-By: hyw
+Specification-Title: dataservice
+Implementation-Vendor-Id: com.hyw
+Created-By: Apache Maven 3.5.4
+Build-Jdk: 1.8.0_181
+Specification-Version: 2.0
+
