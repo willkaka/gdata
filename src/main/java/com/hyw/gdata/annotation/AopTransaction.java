@@ -38,17 +38,20 @@ public class AopTransaction {
         Method objMethod = classTarget.getMethod(methodName, par);
         //5. 获取该方法上的事务注解
         NTransactional annotation = objMethod.getDeclaredAnnotation(NTransactional.class);
+
         // 2.判断是否需要开启事务
         LocalDateTime begTime = LocalDateTime.now();
         Class<? extends Throwable>[] throwableList = new Class[0];
         if(annotation!=null) throwableList = annotation.rollbackWhen();
         begin(annotation, objMethod, begTime, throwableList);
+
         // 3.调用目标代理对象方法
         Object rtnObject = null;
         try {
             rtnObject = pjp.proceed(pjp.getArgs());
         }catch (Exception e){
-            if(throwableList==null || throwableList.length<=0){
+            //发生异常，回滚事务
+            if(throwableList==null || throwableList.length <= 0){
                 TransactionUtil.rollback(objMethod,begTime);
                 return null;
             }

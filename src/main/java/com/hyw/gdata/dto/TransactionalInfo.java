@@ -13,6 +13,7 @@ import java.util.List;
 @Setter
 public class TransactionalInfo{
     private String transactionId;
+    private Long threadId;
     private Method method;
     private LocalDateTime begTime;
     private List<Connection> connectionList = new ArrayList<>();

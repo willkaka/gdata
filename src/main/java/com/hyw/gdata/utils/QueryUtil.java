@@ -146,17 +146,7 @@ public class QueryUtil {
         return SerializedUtil.getImplClass();
     }
 
-    public static <T> Class<?> getClassWithFunc(QFunction<T, ?> func){
-        SerializedLambda SerializedUtil = QueryUtil.resolve(func);
-        return SerializedUtil.getImplClass();
-    }
-
     public static <T> String getImplMethodName(QFunction<T, ?> func){
-        SerializedLambda serializedUtil = QueryUtil.resolve(func);
-        return serializedUtil.getImplMethodName();
-    }
-
-    public static <T> String getImplMethodName(Function<T, ?> func){
         SerializedLambda serializedUtil = QueryUtil.resolve(func);
         return serializedUtil.getImplMethodName();
     }
@@ -190,37 +180,6 @@ public class QueryUtil {
             throw new DbException("This is impossible to happen",e);
         }
     }
-
-    /**
-     * 反序列化
-     * 通过反序列化转换 lambda 表达式，该方法只能序列化 lambda 表达式，不能序列化接口实现或者正常非 lambda 写法的对象
-     * @param func
-     * @param <T>
-     * @return
-     */
-    public static <T> SerializedLambda resolve(QFunction<T, ?> func) {
-        if (func == null) { return null; }
-        if (!func.getClass().isSynthetic()) {
-            throw new DbException("该方法仅能传入 lambda 表达式产生的合成类");
-        }
-        try{
-            ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
-            try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-                oos.writeObject(func);
-                oos.flush();
-            } catch (IOException ex) {
-                throw new IllegalArgumentException("Failed to serialize object of type: " + func.getClass(), ex);
-            }
-            byte[] bytes = baos.toByteArray();
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-            ObjectInputStream objIn = new QueryObjectInputStream(byteArrayInputStream);
-            Object obj = objIn.readObject();
-            return (SerializedLambda) obj;
-        }catch (Exception e){
-            throw new DbException("This is impossible to happen",e);
-        }
-    }
-
 
     /**
      * <p>
@@ -318,13 +277,29 @@ public class QueryUtil {
             //setter
             Object value = null;
             if(declaredField.getType().getName().equals("java.lang.String")) {
-                value = map.get(o).toString();
+                if(map.get(o) == null) {
+                    value = null;
+                }else {
+                    value = map.get(o).toString();
+                }
             }else if(declaredField.getType().getName().equals("java.time.LocalDate")){
-                value = LocalDate.parse(map.get(o).toString(),DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                if(map.get(o) == null) {
+                    value = null;
+                }else {
+                    value = LocalDate.parse(map.get(o).toString(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                }
             }else if(declaredField.getType().getName().equals("java.lang.Integer")){
-                value = Integer.parseInt(map.get(o).toString());
+                if(map.get(o) == null) {
+                    value = 0;
+                }else {
+                    value = Integer.parseInt(map.get(o).toString());
+                }
             }else if(declaredField.getType().getName().equals("java.math.BigDecimal")){
-                value = new BigDecimal(map.get(o).toString());
+                if(map.get(o) == null) {
+                    value = BigDecimal.ZERO;
+                }else {
+                    value = new BigDecimal(map.get(o).toString());
+                }
             }
             declaredField.set(t, value);
         }

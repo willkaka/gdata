@@ -1,7 +1,8 @@
 package com.hyw.gdata.annotation;
 
 import com.hyw.gdata.DataService;
-import com.hyw.dataservice.dto.TransactionalInfo;
+import com.hyw.gdata.dto.TransactionalInfo;
+import com.hyw.gdata.exception.DbException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -23,46 +24,57 @@ public class TransactionUtil {
         List<TransactionalInfo> transactionalInfoList = DataService.getTransactionalInfoList();
         TransactionalInfo transactionalInfo = new TransactionalInfo();
         transactionalInfo.setTransactionId(UUID.randomUUID().toString());
+        transactionalInfo.setThreadId(Thread.currentThread().getId());
         transactionalInfo.setMethod(method);
         transactionalInfo.setBegTime(begTime);
         transactionalInfo.setThrowableList(throwableList);
         transactionalInfoList.add(transactionalInfo);
-        System.out.println("开启事务");
+        log.info("开启事务");
     }
 
     // 提交事务
     public static void commit(Method method,LocalDateTime begTime) {
         List<TransactionalInfo> transactionalInfoList = DataService.getTransactionalInfoList();
         for(TransactionalInfo transactionalInfo:transactionalInfoList){
-            if(Objects.equals(method,transactionalInfo.getMethod()) && begTime.equals(transactionalInfo.getBegTime())){
-                List<Connection> connectionList = transactionalInfo.getConnectionList();
-                for(Connection connection:connectionList){
-                    try {
-                        connection.commit();
-                    }catch (Exception e){
-                        log.error("提交事务失败",e);
-                    }
+            //同线程号、同方法、同时间
+            if(!transactionalInfo.getThreadId().equals(Thread.currentThread().getId())) continue;
+            if(!Objects.equals(method,transactionalInfo.getMethod())) continue;
+            if(!begTime.equals(transactionalInfo.getBegTime())) continue;
+
+            List<Connection> connectionList = transactionalInfo.getConnectionList();
+            for(Connection connection:connectionList){
+                try {
+                    connection.commit();
+                }catch (Exception e){
+                    throw new DbException("提交事务失败",e);
                 }
             }
+            transactionalInfoList.remove(transactionalInfo);
+            break;
         }
-        System.out.println("提交事务成功");
+        log.info("提交事务成功");
     }
 
     // 回滚事务
     public static void rollback(Method method,LocalDateTime begTime) {
         List<TransactionalInfo> transactionalInfoList = DataService.getTransactionalInfoList();
         for(TransactionalInfo transactionalInfo:transactionalInfoList){
-            if(Objects.equals(method,transactionalInfo.getMethod()) && begTime.equals(transactionalInfo.getBegTime())){
-                List<Connection> connectionList = transactionalInfo.getConnectionList();
-                for(Connection connection:connectionList){
-                    try {
-                        connection.rollback();
-                    }catch (Exception e){
-                        log.error("提交事务失败",e);
-                    }
+            //同线程号、同方法、同时间
+            if(!transactionalInfo.getThreadId().equals(Thread.currentThread().getId())) continue;
+            if(!Objects.equals(method,transactionalInfo.getMethod())) continue;
+            if(!begTime.equals(transactionalInfo.getBegTime())) continue;
+
+            List<Connection> connectionList = transactionalInfo.getConnectionList();
+            for(Connection connection:connectionList){
+                try {
+                    connection.rollback();
+                }catch (Exception e){
+                    throw new DbException("回滚事务失败",e);
                 }
             }
+            transactionalInfoList.remove(transactionalInfo);
+            break;
         }
-        System.out.println("回滚事务...");
+        log.info("已回滚事务...");
     }
 }

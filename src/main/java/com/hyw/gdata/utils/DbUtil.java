@@ -15,23 +15,71 @@ import java.util.Map;
 @Slf4j
 public class DbUtil {
 
+
+    /**
+     * 取DB数据库连接
+     * @param driver 驱动
+     * @param url 地址
+     * @param user 用户名
+     * @param password 密码
+     * @return Connection
+     */
+    public static Connection getConnection(String dbType,String driver,String url,String attr,String lib,String user,String password) {
+        String dbUrl ="";
+        if(dbType.equalsIgnoreCase(DbConstant.DB_TYPE_MYSQL)) {
+            dbUrl = url
+                    + (QueryUtil.isNotBlankStr(lib) ? "/" + lib : "")
+                    + (QueryUtil.isNotBlankStr(attr) ? "?" + attr : "");
+        }else if(dbType.equalsIgnoreCase(DbConstant.DB_TYPE_ORACLE)) {
+            dbUrl = url + (QueryUtil.isNotBlankStr(lib) ? ":" + lib : "");
+//        }else if(dbType.equalsIgnoreCase(Constant.DB_TYPE_EXCEL)){
+//            dbUrl = url + (QueryUtil.isNotBlankStr(lib) ? "DBQ="+ lib : "");
+        }if(dbType.equalsIgnoreCase(DbConstant.DB_TYPE_SQLITE)){
+            if("main".equals(lib)) {
+                dbUrl = url;
+            }else{
+                dbUrl = url
+                        + (QueryUtil.isNotBlankStr(lib) ? ":" + lib : "");
+            }
+        }
+
+        try {
+            Class.forName(driver);
+            return DriverManager.getConnection(dbUrl, user, password);
+        } catch (Exception e) {
+            log.error("数据库连接出错！driver({}),url({}),user({}),password({})",driver,dbUrl,user,password,e);
+            throw new DbException("数据库连接出错！");
+        }
+    }
+
+    /**
+     * 关闭数据库连接
+     * @param connection 数据库连接
+     */
+    public static void closeConnection(Connection connection){
+        try{
+            if(connection != null) connection.close();
+        }catch (Exception e){
+            log.error("关闭数据库连接出错！",e);
+        }
+    }
+
     /**
      * 获取db的所有数据库名称
      * @param connection 连接
      * @return 所有数据库名称List<String>
      */
     public static List<String> getLibraryNames(Connection connection){
-        List<String> dbLibraryList=new ArrayList<String>();
+        List<String> dbLibraryList=new ArrayList<>();
         try {
             DatabaseMetaData dmd = connection.getMetaData();
 
-            if("sqlite".equals(dmd.getDatabaseProductName().toLowerCase())){
+            if("sqlite".equalsIgnoreCase(dmd.getDatabaseProductName())){
                 dbLibraryList.add("main");
                 return dbLibraryList;
             }
 
             ResultSet rs = dmd.getCatalogs();
-            //List<Map<String,Object>> maplist = getRcdMapFromResultSet(rs);
             while (rs.next()) {
                 dbLibraryList.add(rs.getString(1));
             }
@@ -48,11 +96,10 @@ public class DbUtil {
         //指出返回何种表的数组("TABLE"、"VIEW"、"SYSTEM TABLE"， "GLOBAL TEMPORARY"，"LOCAL  TEMPORARY"，"ALIAS"，"SYSNONYM")
         String[] typePattern = new String[] { "TABLE" };
 
-        List<String> tableList = new ArrayList<String>();
+        List<String> tableList = new ArrayList<>();
         try {
             DatabaseMetaData meta = con.getMetaData();
             ResultSet rs = meta.getTables(catalog, schemaPattern, tableNamePattern, typePattern);
-            //List<Map<String,Object>> maplist = getRcdMapFromResultSet(rs);
             while (rs.next()) {
                 tableList.add(rs.getString(3)); //rs.getString(3)表名，rs.getString(2)表所属用户名
             }
@@ -209,53 +256,6 @@ public class DbUtil {
         return primaryKeys;
     }
 
-    /**
-     * 取DB数据库连接
-     * @param driver 驱动
-     * @param url 地址
-     * @param user 用户名
-     * @param password 密码
-     * @return Connection
-     */
-    public static Connection getConnection(String dbType,String driver,String url,String attr,String lib,String user,String password) {
-        String dbUrl ="";
-        if(dbType.equalsIgnoreCase(DbConstant.DB_TYPE_MYSQL)) {
-            dbUrl = url
-                + (QueryUtil.isNotBlankStr(lib) ? "/" + lib : "")
-                + (QueryUtil.isNotBlankStr(attr) ? "?" + attr : "");
-        }else if(dbType.equalsIgnoreCase(DbConstant.DB_TYPE_ORACLE)) {
-            dbUrl = url + (QueryUtil.isNotBlankStr(lib) ? ":" + lib : "");
-//        }else if(dbType.equalsIgnoreCase(Constant.DB_TYPE_EXCEL)){
-//            dbUrl = url + (QueryUtil.isNotBlankStr(lib) ? "DBQ="+ lib : "");
-        }if(dbType.equalsIgnoreCase(DbConstant.DB_TYPE_SQLITE)){
-            if("main".equals(lib)) {
-                dbUrl = url;
-            }else{
-                dbUrl = url
-                        + (QueryUtil.isNotBlankStr(lib) ? ":" + lib : "");
-            }
-        }
-
-        try {
-            Class.forName(driver);
-            return DriverManager.getConnection(dbUrl, user, password);
-        } catch (Exception e) {
-            log.error("数据库连接出错！driver({}),url({}),user({}),password({})",driver,dbUrl,user,password,e);
-            throw new DbException("数据库连接出错！");
-        }
-    }
-
-    /**
-     * 关闭数据库连接
-     * @param connection 数据库连接
-     */
-    public static void closeConnection(Connection connection){
-        try{
-            if(connection != null) connection.close();
-        }catch (Exception e){
-            log.error("关闭数据库连接出错！",e);
-        }
-    }
 
     /**
      * 执行sql返回记录集
@@ -263,7 +263,7 @@ public class DbUtil {
      * @param sql 脚本
      * @return 记录集
      */
-    public static List<Map<String,Object>> getSqlRecords(Connection connection,String sql){
+    public static List<Map<String,Object>> queryListMapBySql(Connection connection,String sql){
         if(connection == null){
             log.error("数据库连接不允许为null！");
             return null;
@@ -321,7 +321,7 @@ public class DbUtil {
         int count = 0;
         try {
             Statement statement = connection.createStatement();
-            String sql = SqlUtil.getSelectCountSql("select * from " + table);
+            String sql = SqlGenUtil.getSelectCountSql("select * from " + table);
             ResultSet set = statement.executeQuery(sql);
             if(set != null) {
                 //取记录
@@ -358,7 +358,7 @@ public class DbUtil {
         List<Map<String,FieldAttr>> listMap = new ArrayList<>();
         try {
             Statement statement = connection.createStatement();
-            String sql = SqlUtil.getSelectPageSql("select * from " + table,begNum,pageSize);
+            String sql = SqlGenUtil.getSelectPageSql("select * from " + table,begNum,pageSize);
             ResultSet set = statement.executeQuery(sql);
             if(set != null) {
                 //取记录
@@ -401,7 +401,7 @@ public class DbUtil {
         DbThrow.isBlank(sql,"sql不允为空！");
 
         int count = 0;
-        String sqlCount = SqlUtil.getSelectCountSql(sql);
+        String sqlCount = SqlGenUtil.getSelectCountSql(sql);
         try {
             Statement statement = connection.createStatement();
             ResultSet set = statement.executeQuery(sqlCount);
@@ -515,8 +515,8 @@ public class DbUtil {
                 listMap.add(map);
             }
         }catch (SQLException e){
-            log.error("读取resultset出错！",e);
-            throw new DbException("读取resultset出错！");
+            log.error("读取resultSet出错！",e);
+            throw new DbException("读取resultSet出错！");
         }
         return listMap;
     }
@@ -533,50 +533,12 @@ public class DbUtil {
         //取记录
         try {
             while (set.next()) {
-                ResultSetMetaData metaData = set.getMetaData();
-                FieldAttr fieldAttr = new FieldAttr();
-                for (int fieldNum = 1; fieldNum <= metaData.getColumnCount(); fieldNum++) {
-                    if (metaData.getColumnName(fieldNum) != null && !"".equals(metaData.getColumnName(fieldNum))) {
-                        String fieldName;
-                        if (QueryUtil.isNotBlankStr(metaData.getColumnLabel(fieldNum))) {
-                            fieldName = metaData.getColumnLabel(fieldNum);
-                        } else {
-                            fieldName = metaData.getColumnName(fieldNum);
-                        }
-                        Object fieldValue = set.getObject(fieldName);
-                        switch (fieldName) {
-                            case "SCOPE_TABLE": {fieldAttr.setScopeTable(String.valueOf(fieldValue)); break;}
-                            case "TABLE_CAT": {fieldAttr.setTableCat(String.valueOf(fieldValue)); break;}
-                            case "BUFFER_LENGTH": {fieldAttr.setBufferLength(null==fieldValue?0:(int)fieldValue); break;}
-                            case "IS_NULLABLE": {fieldAttr.setIsNullable(String.valueOf(fieldValue)); break;}
-                            case "TABLE_NAME": {fieldAttr.setTableName(String.valueOf(fieldValue)); break;}
-                            case "COLUMN_DEF": {fieldAttr.setColumnDef(String.valueOf(fieldValue)); break;}
-                            case "SCOPE_CATALOG": {fieldAttr.setScopeCatalog(String.valueOf(fieldValue)); break;}
-                            case "TABLE_SCHEM": {fieldAttr.setTableSchem(String.valueOf(fieldValue)); break;}
-                            case "COLUMN_NAME": {fieldAttr.setColumnName(String.valueOf(fieldValue)); break;}
-                            case "NULLABLE": {fieldAttr.setNullable(null==fieldValue?0:(int)fieldValue); break;}
-                            case "REMARKS": {fieldAttr.setRemarks(String.valueOf(fieldValue)); break;}
-                            case "DECIMAL_DIGITS": {fieldAttr.setDecimalDigits(String.valueOf(fieldValue)); break;}
-                            case "NUM_PREC_RADIX": {fieldAttr.setNumPrecRadix(null==fieldValue?0:(int)fieldValue); break;}
-                            case "SQL_DATETIME_SUB": {fieldAttr.setSqlDatetimeSub(null==fieldValue?0:(int)fieldValue); break;}
-                            case "IS_GENERATEDCOLUMN": {fieldAttr.setIsGeneratedcolumn(String.valueOf(fieldValue)); break;}
-                            case "IS_AUTOINCREMENT": {fieldAttr.setIsAutoincrement(String.valueOf(fieldValue)); break;}
-                            case "SQL_DATA_TYPE": {fieldAttr.setSqlDataType(null==fieldValue?0:(int)fieldValue); break;}
-                            case "CHAR_OCTET_LENGTH": {fieldAttr.setCharOctetLength(null==fieldValue?0:(int)fieldValue); break;}
-                            case "ORDINAL_POSITION": {fieldAttr.setOrdinalPosition(null==fieldValue?0:(int)fieldValue); break;}
-                            case "SCOPE_SCHEMA": {fieldAttr.setScopeSchema(String.valueOf(fieldValue)); break;}
-                            case "SOURCE_DATA_TYPE": {fieldAttr.setSourceDataType(String.valueOf(fieldValue)); break;}
-                            case "DATA_TYPE": {fieldAttr.setDataType(String.valueOf(fieldValue)); break;}
-                            case "TYPE_NAME": {fieldAttr.setTypeName(String.valueOf(fieldValue)); break;}
-                            case "COLUMN_SIZE": {fieldAttr.setColumnSize(null==fieldValue?0:(int)fieldValue); break;}
-                        }
-                    }
-                }
+                FieldAttr fieldAttr = new FieldAttr(set);
                 fieldAttrMap.put(fieldAttr.getColumnName(),fieldAttr);
             }
         }catch (SQLException e){
-            log.error("读取resultset出错！",e);
-            throw new DbException("读取resultset出错！");
+            log.error("读取resultSet出错！",e);
+            throw new DbException("读取resultSet出错！");
         }
         //排序
 
@@ -617,8 +579,8 @@ public class DbUtil {
                 }
             }
         }catch (SQLException e){
-            log.error("读取resultset出错！",e);
-            throw new DbException("读取resultset出错！");
+            log.error("读取resultSet出错！",e);
+            throw new DbException("读取resultSet出错！");
         }
         return fieldAttrMap;
     }
@@ -631,51 +593,12 @@ public class DbUtil {
         //取记录
         try {
             while (set.next()) {
-                ResultSetMetaData metaData = set.getMetaData();
-                FieldAttr fieldAttr = new FieldAttr();
-                for (int fieldNum = 1; fieldNum <= metaData.getColumnCount(); fieldNum++) {
-                    if (metaData.getColumnName(fieldNum) != null && !"".equals(metaData.getColumnName(fieldNum))) {
-                        String fieldName;
-                        if (QueryUtil.isNotBlankStr(metaData.getColumnLabel(fieldNum))) {
-                            fieldName = metaData.getColumnLabel(fieldNum);
-                        } else {
-                            fieldName = metaData.getColumnName(fieldNum);
-                        }
-                        Object fieldValue = set.getObject(fieldName);
-                        if(null == fieldValue) continue;
-                        switch (fieldName) {
-                            case "SCOPE_TABLE": {fieldAttr.setScopeTable(String.valueOf(fieldValue)); break;}
-                            case "TABLE_CAT": {fieldAttr.setTableCat(String.valueOf(fieldValue)); break;}
-                            case "BUFFER_LENGTH": {fieldAttr.setBufferLength((int)fieldValue); break;}
-                            case "IS_NULLABLE": {fieldAttr.setIsNullable(String.valueOf(fieldValue)); break;}
-                            case "TABLE_NAME": {fieldAttr.setTableName(String.valueOf(fieldValue)); break;}
-                            case "COLUMN_DEF": {fieldAttr.setColumnDef(String.valueOf(fieldValue)); break;}
-                            case "SCOPE_CATALOG": {fieldAttr.setScopeCatalog(String.valueOf(fieldValue)); break;}
-                            case "TABLE_SCHEM": {fieldAttr.setTableSchem(String.valueOf(fieldValue)); break;}
-                            case "COLUMN_NAME": {fieldAttr.setColumnName(String.valueOf(fieldValue)); break;}
-                            case "NULLABLE": {fieldAttr.setNullable((int)fieldValue); break;}
-                            case "REMARKS": {fieldAttr.setRemarks(String.valueOf(fieldValue)); break;}
-                            case "DECIMAL_DIGITS": {fieldAttr.setDecimalDigits(String.valueOf(fieldValue)); break;}
-                            case "NUM_PREC_RADIX": {fieldAttr.setNumPrecRadix((int)fieldValue); break;}
-                            case "SQL_DATETIME_SUB": {fieldAttr.setSqlDatetimeSub((int)fieldValue); break;}
-                            case "IS_GENERATEDCOLUMN": {fieldAttr.setIsGeneratedcolumn(String.valueOf(fieldValue)); break;}
-                            case "IS_AUTOINCREMENT": {fieldAttr.setIsAutoincrement(String.valueOf(fieldValue)); break;}
-                            case "SQL_DATA_TYPE": {fieldAttr.setSqlDataType((int)fieldValue); break;}
-                            case "CHAR_OCTET_LENGTH": {fieldAttr.setCharOctetLength((int)fieldValue); break;}
-                            case "ORDINAL_POSITION": {fieldAttr.setOrdinalPosition((int)fieldValue); break;}
-                            case "SCOPE_SCHEMA": {fieldAttr.setScopeSchema(String.valueOf(fieldValue)); break;}
-                            case "SOURCE_DATA_TYPE": {fieldAttr.setSourceDataType(String.valueOf(fieldValue)); break;}
-                            case "DATA_TYPE": {fieldAttr.setDataType(String.valueOf(fieldValue)); break;}
-                            case "TYPE_NAME": {fieldAttr.setTypeName(String.valueOf(fieldValue)); break;}
-                            case "COLUMN_SIZE": {fieldAttr.setColumnSize((int)fieldValue); break;}
-                        }
-                    }
-                }
+                FieldAttr fieldAttr = new FieldAttr(set);
                 listMap.add(fieldAttr);
             }
         }catch (SQLException e){
-            log.error("读取resultset出错！",e);
-            throw new DbException("读取resultset出错！");
+            log.error("读取resultSet出错！",e);
+            throw new DbException("读取resultSet出错！");
         }
         return listMap;
     }

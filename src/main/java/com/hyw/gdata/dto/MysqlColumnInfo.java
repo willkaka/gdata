@@ -67,4 +67,5 @@ public class MysqlColumnInfo {
 
     //SRS_ID
     private String srsId;
+
 }

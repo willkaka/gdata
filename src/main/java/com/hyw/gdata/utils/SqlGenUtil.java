@@ -5,7 +5,6 @@ import com.hyw.gdata.dto.FieldAttr;
 import com.hyw.gdata.dto.TableFieldInfo;
 import com.hyw.gdata.exception.DbException;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -18,8 +17,37 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class SqlUtil {
+public class SqlGenUtil {
 
+
+    /**
+     * 生成单笔记录的Insert语句
+     * @param object 对象
+     * @return sql
+     */
+    public static String getInsertSql(Object object){
+        if(null == object) return null;
+        List<Field> fieldList = QueryUtil.getAllFieldList(object.getClass());
+        StringBuilder sql = new StringBuilder();
+        String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
+        JSONObject jsonObject = (JSONObject) JSONObject.toJSON(object);
+
+        sql.append("INSERT INTO ").append(tableName).append(" (");
+        StringBuilder sqlFields = new StringBuilder();
+        StringBuilder sqlValues = new StringBuilder();
+        for(Field field:fieldList){
+            String fieldName = QueryUtil.toUnderlineStr(field.getName());
+            String fieldType = field.getType().getTypeName();
+            //拼接字段名称
+            if(QueryUtil.isNotBlankStr(sqlFields.toString())) sqlFields.append(",");
+            sqlFields.append(fieldName);
+            //拼接字段值
+            if(QueryUtil.isNotBlankStr(sqlValues.toString())) sqlValues.append(",");
+            sqlValues.append(getFieldValue(fieldType,jsonObject.get(field.getName())));
+        }
+        sql.append(sqlFields).append(") VALUES(").append(sqlValues).append(")");
+        return sql.toString();
+    }
 
     /**
      * 生成多笔记录的Insert语句
@@ -27,7 +55,7 @@ public class SqlUtil {
      * @param <T> 对象
      * @return sql
      */
-    public static <T> String getInsertSqlWithList(List<T> objectList){
+    public static <T> String getInsertSql(List<T> objectList){
         if(QueryUtil.isEmptyList(objectList)) return null;
         List<Field> fieldList = QueryUtil.getAllFieldList(objectList.get(0).getClass());
         StringBuilder sql = new StringBuilder();
@@ -37,7 +65,7 @@ public class SqlUtil {
         StringBuilder sqlFields = new StringBuilder();
         for(Field field:fieldList){
             String fieldName = field.getName();
-            String fieldType = field.getType().getTypeName();
+//            String fieldType = field.getType().getTypeName();
             //拼接字段名称
             if(QueryUtil.isNotBlankStr(sqlFields.toString())) sqlFields.append(",");
             sqlFields.append(fieldName);
@@ -90,34 +118,6 @@ public class SqlUtil {
         return sql.toString();
     }
 
-    /**
-     * 生成单笔记录的Insert语句
-     * @param object 对象
-     * @return sql
-     */
-    public static String getInsertSql(Object object){
-        if(null == object) return null;
-        List<Field> fieldList = QueryUtil.getAllFieldList(object.getClass());
-        StringBuilder sql = new StringBuilder();
-        String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
-        JSONObject jsonObject = (JSONObject) JSONObject.toJSON(object);
-
-        sql.append("INSERT INTO ").append(tableName).append(" (");
-        StringBuilder sqlFields = new StringBuilder();
-        StringBuilder sqlValues = new StringBuilder();
-        for(Field field:fieldList){
-            String fieldName = QueryUtil.toUnderlineStr(field.getName());
-            String fieldType = field.getType().getTypeName();
-            //拼接字段名称
-            if(QueryUtil.isNotBlankStr(sqlFields.toString())) sqlFields.append(",");
-            sqlFields.append(fieldName);
-            //拼接字段值
-            if(QueryUtil.isNotBlankStr(sqlValues.toString())) sqlValues.append(",");
-            sqlValues.append(getFieldValue(fieldType,jsonObject.get(field.getName())));
-        }
-        sql.append(sqlFields).append(") VALUES(").append(sqlValues).append(")");
-        return sql.toString();
-    }
 
     public static String getFieldValue(String type,Object value){
         if(null == value){
@@ -286,12 +286,14 @@ public class SqlUtil {
             }
             if(index>0) sql.append(QueryUtil.isBlankStr(sql.toString())?"":", ");
             //拼接字段值
-            sql.append(fieldName).append("=").append(getFieldValue(fieldType, jsonObject.get(fieldName)));
+            sql.append(QueryUtil.toUnderlineStr(fieldName)).append("=")
+                    .append(getFieldValue(fieldType, jsonObject.get(fieldName)));
             index++;
         }
         if(null==keyField) return null;
-        sql.append(" WHERE ").append(keyFieldName).append("=")
-                .append(getFieldValue(keyField.getType().getTypeName(), jsonObject.get(keyFieldName)));
+        sql.append(" WHERE ").append(QueryUtil.toUnderlineStr(keyFieldName)).append("=")
+                .append(getFieldValue(keyField.getType().getTypeName(),
+                        jsonObject.get(QueryUtil.firstCharToLowerCase(keyFieldName))));
         return sql.toString();
     }
 

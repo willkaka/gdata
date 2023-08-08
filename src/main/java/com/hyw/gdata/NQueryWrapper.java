@@ -153,12 +153,6 @@ public class NQueryWrapper<T> {
         return this;
     }
 
-    public <A,B> NQueryWrapper<T> eq(Function<A, B> function, Object value) {
-        putTable(function);
-        putCondition(QueryUtil.toCamelCaseStr(QueryUtil.getImplMethodName(function).replace("get","")),"=",getValue(value));
-        return this;
-    }
-
     public <A,B> NQueryWrapper<T> eq(QFunction<A, B> function, Object value) {
         putTable(function);
         putCondition(QueryUtil.toCamelCaseStr(QueryUtil.getImplMethodName(function).replace("get","")),"=",getValue(value));

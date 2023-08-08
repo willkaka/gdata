@@ -5,9 +5,10 @@ import com.hyw.gdata.dto.IPage;
 import com.hyw.gdata.dto.TableFieldInfo;
 import com.hyw.gdata.dto.TransactionalInfo;
 import com.hyw.gdata.exception.DbException;
-import com.hyw.gdata.utils.JdbcUtil;
+import com.hyw.gdata.utils.SqlExecUtil;
 import com.hyw.gdata.utils.QFunction;
 import com.hyw.gdata.utils.QueryUtil;
+import com.hyw.gdata.utils.SqlGenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -74,7 +75,7 @@ public class DataService {
             methodNameList.add(element.getClassName()+"."+element.getMethodName());
         }
 
-        //比较调用栈的方法是否有当前已经记录的事务相同
+        //比较调用栈的方法是否有当前已经记录的事务
         for(TransactionalInfo transactionalInfo:transactionalInfoList){
             Method trxMethod = transactionalInfo.getMethod();
             String key = trxMethod.getParameterTypes().getClass()+"."+trxMethod.getName();
@@ -146,7 +147,7 @@ public class DataService {
      * @return 影响记录数
      */
     public int executeSql(Connection connection,String sql){
-        return JdbcUtil.updateBySql(connection,sql);
+        return SqlExecUtil.updateBySql(connection,sql);
     }
 
     //************************新增记录********************************/
@@ -165,7 +166,7 @@ public class DataService {
      * @return 新增记录数
      */
     public <T> int save(Connection connection, T object) {
-        return JdbcUtil.updateBySql(connection,JdbcUtil.getInsertSql(object));
+        return SqlExecUtil.updateBySql(connection, SqlGenUtil.getInsertSql(object));
     }
 
     /**
@@ -183,7 +184,7 @@ public class DataService {
      * @return 新增记录数
      */
     public <T> int save(Connection connection, List<T> objectList) {
-        return JdbcUtil.updateBySql(connection,JdbcUtil.getInsertSql(objectList));
+        return SqlExecUtil.updateBySql(connection, SqlGenUtil.getInsertSql(objectList));
     }
 
     /**
@@ -239,12 +240,12 @@ public class DataService {
         for(T object:objectList){
             newRecords.add(object);
             if(newRecords.size()>=size) {
-                count = count + JdbcUtil.updateBySql(connection,JdbcUtil.getInsertSql(newRecords));
+                count = count + SqlExecUtil.updateBySql(connection, SqlGenUtil.getInsertSql(newRecords));
                 newRecords.clear();
             }
         }
         if(newRecords.size()>0)
-            count = count + JdbcUtil.updateBySql(connection,JdbcUtil.getInsertSql(newRecords));
+            count = count + SqlExecUtil.updateBySql(connection, SqlGenUtil.getInsertSql(newRecords));
         return count;
     }
 
@@ -259,11 +260,11 @@ public class DataService {
     }
 
     public <T> int delete(Connection connection,T object,String keyFieldName){
-        return JdbcUtil.updateBySql(connection,JdbcUtil.getDeleteSql(object,keyFieldName));
+        return SqlExecUtil.updateBySql(connection, SqlGenUtil.getDeleteSql(object,keyFieldName));
     }
 
     public int delete(Connection connection,String sql){
-        return JdbcUtil.updateBySql(connection,sql);
+        return SqlExecUtil.updateBySql(connection,sql);
     }
 
     public <T> int deleteById(List<T> objectList,String keyFieldName){
@@ -276,14 +277,14 @@ public class DataService {
     }
 
     public <T> int deleteById(Connection connection,List<T> objectList,String keyFieldName){
-        return JdbcUtil.updateBySql(connection,JdbcUtil.getDeleteSql(objectList,keyFieldName));
+        return SqlExecUtil.updateBySqlList(connection, SqlGenUtil.getDeleteSql(objectList,keyFieldName));
     }
 
     public <T> int delete(NUpdateWrapper<T> nUpdateWrapper){
         if(nUpdateWrapper.getConnection() != null){
-            return JdbcUtil.updateBySql(nUpdateWrapper.getConnection(),nUpdateWrapper.getSql());
+            return SqlExecUtil.updateBySql(nUpdateWrapper.getConnection(),nUpdateWrapper.getSql());
         }else {
-            return JdbcUtil.updateBySql(getDatabaseConnection(),nUpdateWrapper.getSql());
+            return SqlExecUtil.updateBySql(getDatabaseConnection(),nUpdateWrapper.getSql());
         }
     }
 
@@ -298,7 +299,7 @@ public class DataService {
     }
 
     public <T> int updateById(Connection connection,T object,String keyFieldName){
-        return JdbcUtil.updateBySql(connection,JdbcUtil.getUpdateSql(object,keyFieldName));
+        return SqlExecUtil.updateBySql(connection, SqlGenUtil.getUpdateSql(object,keyFieldName));
     }
 
     public <T> int updateById(List<T> objectList,String keyFieldName){
@@ -311,20 +312,20 @@ public class DataService {
     }
 
     public <T> int updateById(Connection connection,List<T> objectList,String keyFieldName){
-        List<String> sqlList = JdbcUtil.getUpdateSql(objectList,keyFieldName);
+        List<String> sqlList = SqlGenUtil.getUpdateSql(objectList,keyFieldName);
         if(QueryUtil.isEmptyList(sqlList)) throw new DbException("生成的sql为空！");
         int updateCnt = 0;
         for(String sql:sqlList){
-            updateCnt = updateCnt + JdbcUtil.updateBySql(connection,sql);
+            updateCnt = updateCnt + SqlExecUtil.updateBySql(connection,sql);
         }
         return updateCnt;
     }
 
     public <T> int update(NUpdateWrapper<T> updateWrapper){
         if(updateWrapper.getConnection() != null){
-            return JdbcUtil.updateBySql(updateWrapper.getConnection(),updateWrapper.getSql());
+            return SqlExecUtil.updateBySql(updateWrapper.getConnection(),updateWrapper.getSql());
         }else {
-            return JdbcUtil.updateBySql(getDatabaseConnection(),updateWrapper.getSql());
+            return SqlExecUtil.updateBySql(getDatabaseConnection(),updateWrapper.getSql());
         }
     }
 
@@ -335,9 +336,9 @@ public class DataService {
         String sql = queryWrapper.getSql();
         List<Map<String, Object>> list;
         if(queryWrapper.getConnection() != null){
-            list = JdbcUtil.getSqlRecords(queryWrapper.getConnection(),sql);
+            list = SqlExecUtil.queryListMapBySql(queryWrapper.getConnection(),sql);
         }else {
-            list = JdbcUtil.getSqlRecords(getDatabaseConnection(),sql);
+            list = SqlExecUtil.queryListMapBySql(getDatabaseConnection(),sql);
         }
         for(Map<String, Object> map:list){
             try {
@@ -356,7 +357,7 @@ public class DataService {
 
     public <T> int count(NQueryWrapper<T> queryWrapper){
         String sql = queryWrapper.getCountSql();
-        List<Map<String, Object>> list = JdbcUtil.getSqlRecords(queryWrapper.getConnection()==null?
+        List<Map<String, Object>> list = SqlExecUtil.queryListMapBySql(queryWrapper.getConnection()==null?
                 getDatabaseConnection():queryWrapper.getConnection(),sql);
         if(QueryUtil.isEmptyList(list)) return 0;//throw new DbException("sql("+sql+")查询无记录！");
         return (int) list.get(0).get("COUNT(1)");
@@ -364,7 +365,7 @@ public class DataService {
 
     public <T> List<Map<String, Object>> mapList(NQueryWrapper<T> queryWrapper){
         String sql = queryWrapper.getSql();
-        List<Map<String, Object>> list = JdbcUtil.getSqlRecords(queryWrapper.getConnection()==null?
+        List<Map<String, Object>> list = SqlExecUtil.queryListMapBySql(queryWrapper.getConnection()==null?
                 getDatabaseConnection():queryWrapper.getConnection(),sql);
         return list;
     }
@@ -373,7 +374,7 @@ public class DataService {
     public <T> List<T> list(NQueryWrapper<T> queryWrapper){
         List<T> rtnList = new ArrayList();
         String sql = queryWrapper.getSql();
-        List<Map<String, Object>> list = JdbcUtil.getSqlRecords(queryWrapper.getConnection()==null?
+        List<Map<String, Object>> list = SqlExecUtil.queryListMapBySql(queryWrapper.getConnection()==null?
                 getDatabaseConnection():queryWrapper.getConnection(),sql);
         for(Map<String, Object> map:list){
             try {
@@ -392,7 +393,7 @@ public class DataService {
         int totalCnt = count(queryWrapper);
         List<T> rtnList = new ArrayList();
         String sql = queryWrapper.getSql();
-        List<Map<String, Object>> list = JdbcUtil.getSqlRecords(queryWrapper.getConnection()==null?
+        List<Map<String, Object>> list = SqlExecUtil.queryListMapBySql(queryWrapper.getConnection()==null?
                 getDatabaseConnection():queryWrapper.getConnection(),sql);
         for(Map<String, Object> map:list){
             try {
