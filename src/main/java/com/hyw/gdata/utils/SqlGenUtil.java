@@ -1,5 +1,6 @@
 package com.hyw.gdata.utils;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.hyw.gdata.dto.FieldAttr;
 import com.hyw.gdata.dto.TableFieldInfo;
@@ -345,7 +346,7 @@ public class SqlGenUtil {
         String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
 
         StringBuilder sql = new StringBuilder().append("DELETE FROM ").append(tableName).append(" WHERE ");
-        JSONObject jsonObject = (JSONObject) JSONObject.toJSON(object);
+        JSONObject jsonObject = (JSONObject) JSON.toJSON(object);
         int index=0;
         Field keyField = null;
         for(Field field:fieldList) {
@@ -354,7 +355,7 @@ public class SqlGenUtil {
             if(fieldName.equalsIgnoreCase(keyFieldName)) {
                 keyField = field;
                 //拼接字段值
-                sql.append(fieldName).append("=").append(getFieldValue(fieldType, jsonObject.get(fieldName)));
+                sql.append(QueryUtil.toUnderlineStr(fieldName)).append("=").append(getFieldValue(fieldType, jsonObject.get(fieldName)));
             }
             index++;
         }
