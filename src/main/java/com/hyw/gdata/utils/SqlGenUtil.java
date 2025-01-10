@@ -1,5 +1,6 @@
 package com.hyw.gdata.utils;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.hyw.gdata.dto.FieldAttr;
 import com.hyw.gdata.dto.TableFieldInfo;
@@ -297,6 +298,49 @@ public class SqlGenUtil {
         return sql.toString();
     }
 
+
+    /**
+     * 拼接单表单记录更新sql语句
+     * @param object 表名
+     * @param keyFieldNameList 字段
+     * @return sql字符串
+     */
+    public static <T> String getUpdateSql(T object,List<String> keyFieldNameList){
+        if(object==null) return null;
+        List<Field> fieldList = QueryUtil.getAllFieldList(object.getClass());
+        String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
+
+        StringBuilder sql = new StringBuilder().append("UPDATE ").append(tableName).append(" SET ");
+        JSONObject jsonObject = (JSONObject) JSON.toJSON(object);
+        int index=0;
+        List<String> lowercaseList = new ArrayList<>();
+        for(String keyFieldName:keyFieldNameList) {
+            lowercaseList.add(keyFieldName.toLowerCase());
+        }
+        System.out.println(JSON.toJSONString(lowercaseList));
+        List<Field> keyFieldList = new ArrayList<>();
+        for(Field field:fieldList) {
+            String fieldName = field.getName();
+            String fieldType = field.getType().getTypeName();
+            if(lowercaseList.contains(QueryUtil.toUnderlineStr(fieldName).toLowerCase())) {
+                keyFieldList.add(field);
+            }
+            if(index>0) sql.append(QueryUtil.isBlankStr(sql.toString())?"":", ");
+            //拼接字段值
+            sql.append(QueryUtil.toUnderlineStr(fieldName)).append("=")
+                    .append(getFieldValue(fieldType, jsonObject.get(fieldName)));
+            index++;
+        }
+        if(QueryUtil.isEmptyList(keyFieldList)) return null;
+        sql.append(" WHERE ");
+        for(Field keyField: keyFieldList) {
+                sql.append(" ").append(QueryUtil.toUnderlineStr(keyField.getName())).append("=")
+                    .append(getFieldValue(keyField.getType().getTypeName(),
+                            jsonObject.get(QueryUtil.firstCharToLowerCase(keyField.getName()))));
+        }
+        return sql.toString();
+    }
+
     /**
      * 拼接单表单记录更新sql语句
      * @param objectList 表名
@@ -333,6 +377,48 @@ public class SqlGenUtil {
         return sqlList;
     }
 
+
+    /**
+     * 拼接单表单记录更新sql语句
+     * @param object 表名
+     * @param keyFieldNameList 字段
+     * @return sql字符串
+     */
+    public static <T> String getDeleteSql(T object,List<String> keyFieldNameList){
+        if(object==null) return null;
+        // 关键字段名称统一转为小写
+        List<String> lowercaseList = new ArrayList<>();
+        for(String keyFieldName:keyFieldNameList) {
+            lowercaseList.add(keyFieldName.toLowerCase());
+        }
+        System.out.println(JSON.toJSONString(lowercaseList));
+
+        // 获取对象中的关键属性字段及值
+        List<Field> fieldList = QueryUtil.getAllFieldList(object.getClass());
+        List<Field> keyFieldList = new ArrayList<>();
+        for(Field field:fieldList) {
+            String fieldName = field.getName();
+            if(lowercaseList.contains(QueryUtil.toUnderlineStr(fieldName).toLowerCase())) {
+                keyFieldList.add(field);
+            }
+        }
+        if(QueryUtil.isEmptyList(keyFieldList)) {
+            throw new DbException("未找到key信息");
+        }
+        // 对象名称作为表名
+        String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
+
+        // 拼接sql
+        StringBuilder sql = new StringBuilder().append("DELETE FROM ").append(tableName).append(" WHERE ");
+        JSONObject jsonObject = (JSONObject) JSON.toJSON(object);
+        for(Field keyField: keyFieldList) {
+            sql.append(" ").append(QueryUtil.toUnderlineStr(keyField.getName())).append("=")
+                    .append(getFieldValue(keyField.getType().getTypeName(),
+                            jsonObject.get(QueryUtil.firstCharToLowerCase(keyField.getName()))));
+        }
+        return sql.toString();
+    }
+
     /**
      * 拼接单表单记录更新sql语句
      * @param object 表名
@@ -345,7 +431,7 @@ public class SqlGenUtil {
         String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
 
         StringBuilder sql = new StringBuilder().append("DELETE FROM ").append(tableName).append(" WHERE ");
-        JSONObject jsonObject = (JSONObject) JSONObject.toJSON(object);
+        JSONObject jsonObject = (JSONObject) JSON.toJSON(object);
         int index=0;
         Field keyField = null;
         for(Field field:fieldList) {
@@ -354,7 +440,7 @@ public class SqlGenUtil {
             if(fieldName.equalsIgnoreCase(keyFieldName)) {
                 keyField = field;
                 //拼接字段值
-                sql.append(fieldName).append("=").append(getFieldValue(fieldType, jsonObject.get(fieldName)));
+                sql.append(QueryUtil.toUnderlineStr(fieldName)).append("=").append(getFieldValue(fieldType, jsonObject.get(fieldName)));
             }
             index++;
         }

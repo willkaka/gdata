@@ -5,10 +5,7 @@ import com.hyw.gdata.dto.IPage;
 import com.hyw.gdata.dto.TableFieldInfo;
 import com.hyw.gdata.dto.TransactionalInfo;
 import com.hyw.gdata.exception.DbException;
-import com.hyw.gdata.utils.SqlExecUtil;
-import com.hyw.gdata.utils.QFunction;
-import com.hyw.gdata.utils.QueryUtil;
-import com.hyw.gdata.utils.SqlGenUtil;
+import com.hyw.gdata.utils.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -280,6 +277,25 @@ public class DataService {
         return SqlExecUtil.updateBySqlList(connection, SqlGenUtil.getDeleteSql(objectList,keyFieldName));
     }
 
+
+    public <T> int deleteById(T object){
+        String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
+        Connection connection = getDatabaseConnection();
+        List<String> keyFieldNameList = DbUtil.getTablePrimaryKeys(connection, null, tableName);
+        return SqlExecUtil.updateBySql(connection, SqlGenUtil.getDeleteSql(object,keyFieldNameList));
+    }
+
+    public <T> int deleteById(List<T> objectList){
+        String tableName = QueryUtil.toUnderlineStr(objectList.get(0).getClass().getSimpleName());
+        Connection connection = getDatabaseConnection();
+        List<String> keyFieldNameList = DbUtil.getTablePrimaryKeys(connection, null, tableName);
+        int count = 0;
+        for(T object: objectList){
+            count = count + SqlExecUtil.updateBySql(connection, SqlGenUtil.getDeleteSql(object,keyFieldNameList));
+        }
+        return count;
+    }
+
     public <T> int delete(NUpdateWrapper<T> nUpdateWrapper){
         if(nUpdateWrapper.getConnection() != null){
             return SqlExecUtil.updateBySql(nUpdateWrapper.getConnection(),nUpdateWrapper.getSql());
@@ -292,6 +308,24 @@ public class DataService {
     public <T,B> int update(T object,QFunction<T, B> function){
         String fieldName = QueryUtil.getImplMethodName(function).replace("get", "");
         return updateById(getDatabaseConnection(),object,fieldName);
+    }
+
+    public <T> int updateById(T object){
+        String tableName = QueryUtil.toUnderlineStr(object.getClass().getSimpleName());
+        Connection connection = getDatabaseConnection();
+        List<String> keyFieldNameList = DbUtil.getTablePrimaryKeys(connection, null, tableName);
+        return SqlExecUtil.updateBySql(connection, SqlGenUtil.getUpdateSql(object,keyFieldNameList));
+    }
+
+    public <T> int updateById(List<T> objectList){
+        String tableName = QueryUtil.toUnderlineStr(objectList.get(0).getClass().getSimpleName());
+        Connection connection = getDatabaseConnection();
+        List<String> keyFieldNameList = DbUtil.getTablePrimaryKeys(connection, null, tableName);
+        int count = 0;
+        for(T object: objectList){
+            count = count + SqlExecUtil.updateBySql(connection, SqlGenUtil.getUpdateSql(object,keyFieldNameList));
+        }
+        return count;
     }
 
     public <T> int updateById(T object,String keyFieldName){

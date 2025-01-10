@@ -72,6 +72,7 @@ public class SqlExecUtil {
      * @return boolean成功为真
      */
     public static int updateBySql(Connection connection, String sql){
+        log.debug("sql:{}",sql);
         int updateCnt=0;
         try {
             Statement statement = connection.createStatement();
